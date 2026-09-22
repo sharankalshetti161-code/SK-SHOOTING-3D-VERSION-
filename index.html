@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SK Social Media</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#fafafa;color:#111}
+header{position:sticky;top:0;z-index:5;background:white;border-bottom:1px solid #ddd;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:24px;font-weight:800;background:linear-gradient(45deg,#f58529,#dd2a7b,#8134af,#515bd4);color:transparent;background-clip:text}
+nav button,.topbtn{border:0;background:white;font-size:15px;padding:8px;cursor:pointer}
+main{max-width:620px;margin:20px auto;padding:0 12px}
+.card{background:#fff;border:1px solid #ddd;border-radius:12px;margin-bottom:18px;overflow:hidden}
+.user{display:flex;align-items:center;padding:12px;font-weight:700}.avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#ff7a00,#c13584);margin-right:10px}
+.postimg{width:100%;display:block;max-height:620px;object-fit:cover;background:#eee}
+.actions{display:flex;gap:8px;padding:10px 12px}.actions button{border:0;background:none;font-size:22px;cursor:pointer}
+.caption{padding:0 12px 10px}.comments{padding:0 12px 12px;color:#555}
+.addcomment{display:flex;border-top:1px solid #eee}.addcomment input{flex:1;border:0;padding:12px;outline:none}.addcomment button{border:0;background:white;color:#1976d2;font-weight:700;padding:0 12px}
+.login{max-width:390px;margin:80px auto;background:white;border:1px solid #ddd;padding:28px;border-radius:14px;text-align:center}
+.login input{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:8px}.primary{width:100%;padding:12px;border:0;border-radius:8px;background:#1877f2;color:white;font-weight:700;cursor:pointer}
+.hidden{display:none}.newpost{padding:12px;background:#fff;border:1px solid #ddd;border-radius:12px;margin-bottom:18px}.newpost textarea{width:100%;height:70px;resize:none;border:1px solid #ddd;border-radius:8px;padding:10px}.newpost input{margin:8px 0}.profile{text-align:center;background:white;border:1px solid #ddd;border-radius:12px;padding:24px;margin-bottom:18px}
+</style>
+</head>
+<body>
+<div id="login" class="login">
+  <div class="logo">SK Social Media</div>
+  <h2 id="loginTitle">Create / Login</h2>
+  <input id="username" placeholder="Username">
+  <input id="password" type="password" placeholder="Password">
+  <button class="primary" onclick="login()">Continue</button>
+  <p style="color:#777;font-size:13px">Demo account system for this website.</p>
+</div>
+
+<div id="app" class="hidden">
+<header>
+  <div class="logo">SK Social Media</div>
+  <nav>
+    <button onclick="showHome()">🏠</button>
+    <button onclick="showProfile()">👤</button>
+    <button onclick="logout()">Logout</button>
+  </nav>
+</header>
+
+<main id="content">
+  <div class="newpost">
+    <b>Create a post</b><br><br>
+    <textarea id="caption" placeholder="Write something..."></textarea><br>
+    <input id="imageUrl" type="url" placeholder="Image URL (optional)" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px">
+    <button class="primary" style="margin-top:8px" onclick="createPost()">Post</button>
+  </div>
+  <div id="feed"></div>
+</main>
+</div>
+
+<script>
+const KEY="sk_social_data_v1";
+let data=JSON.parse(localStorage.getItem(KEY)||'{"users":{},"posts":[]}');
+let current=localStorage.getItem("sk_current");
+
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function login(){
+ const u=document.getElementById("username").value.trim();
+ const p=document.getElementById("password").value;
+ if(!u||!p){alert("Enter username and password");return}
+ if(!data.users[u]) data.users[u]={password:p,followers:[]};
+ else if(data.users[u].password!==p){alert("Wrong password");return}
+ current=u;localStorage.setItem("sk_current",u);
+ document.getElementById("login").classList.add("hidden");
+ document.getElementById("app").classList.remove("hidden"); render();
+}
+function logout(){localStorage.removeItem("sk_current");location.reload()}
+function createPost(){
+ const cap=document.getElementById("caption").value.trim();
+ const img=document.getElementById("imageUrl").value.trim();
+ if(!cap&&!img){alert("Add text or an image URL");return}
+ data.posts.unshift({id:Date.now(),user:current,caption:cap,img:img,likes:[],comments:[],saved:[]});
+ save();document.getElementById("caption").value="";document.getElementById("imageUrl").value="";render();
+}
+function like(id){
+ const p=data.posts.find(x=>x.id===id); const i=p.likes.indexOf(current);
+ i<0?p.likes.push(current):p.likes.splice(i,1);save();render();
+}
+function savePost(id){
+ const p=data.posts.find(x=>x.id===id); const i=p.saved.indexOf(current);
+ i<0?p.saved.push(current):p.saved.splice(i,1);save();render();
+}
+function comment(id){
+ const inp=document.getElementById("c"+id); if(!inp.value.trim())return;
+ data.posts.find(x=>x.id===id).comments.push({user:current,text:inp.value.trim()});inp.value="";save();render();
+}
+function sharePost(id){
+ const text=location.href+" #SKSocialMedia";
+ if(navigator.share) navigator.share({title:"SK Social Media",text});
+ else navigator.clipboard?.writeText(text).then(()=>alert("Post link copied"));
+}
+function render(){
+ const feed=document.getElementById("feed");
+ feed.innerHTML=data.posts.map(p=>`
+ <article class="card">
+  <div class="user"><div class="avatar"></div>${esc(p.user)}</div>
+  ${p.img?`<img class="postimg" src="${esc(p.img)}" onerror="this.style.display='none'">`:''}
+  <div class="actions">
+   <button onclick="like(${p.id})">${p.likes.includes(current)?'❤️':'♡'}</button>
+   <button onclick="document.getElementById('c${p.id}').focus()">💬</button>
+   <button onclick="sharePost(${p.id})">📤</button>
+   <button onclick="savePost(${p.id})">${p.saved.includes(current)?'🔖':'🏷️'}</button>
+  </div>
+  <div class="caption"><b>${esc(p.user)}</b> ${esc(p.caption)}</div>
+  <div class="comments">${p.likes.length} likes<br>${p.comments.map(c=>`<div><b>${esc(c.user)}</b> ${esc(c.text)}</div>`).join("")}</div>
+  <div class="addcomment"><input id="c${p.id}" placeholder="Add a comment..." onkeydown="if(event.key==='Enter')comment(${p.id})"><button onclick="comment(${p.id})">Post</button></div>
+ </article>`).join("") || '<div class="card" style="padding:25px;text-align:center">No posts yet. Create the first post!</div>';
+}
+function showHome(){document.getElementById("content").innerHTML=`
+<div class="newpost"><b>Create a post</b><br><br><textarea id="caption" placeholder="Write something..."></textarea><br>
+<input id="imageUrl" type="url" placeholder="Image URL (optional)" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px">
+<button class="primary" style="margin-top:8px" onclick="createPost()">Post</button></div><div id="feed"></div>`;render()}
+function showProfile(){
+ const u=data.users[current];document.getElementById("content").innerHTML=`<div class="profile"><div class="avatar" style="margin:0 auto 12px;width:75px;height:75px"></div><h2>@${esc(current)}</h2><p>Followers: ${u.followers.length}</p><button class="primary" onclick="showHome()">Back to Home</button></div>`;
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+if(current){document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");render()}
+</script>
+</body>
+</html>
